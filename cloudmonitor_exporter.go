@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/avct/user-agent-surfer"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/version"
 	"log"
 	"net"
 	"net/http"
@@ -18,6 +15,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/avct/user-agent-surfer"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/version"
 )
 
 var (
@@ -426,6 +427,7 @@ func getIPVersion(ip_s string) string {
 }
 
 func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	if r.Method != "POST" {
 		http.Error(w, "Internal server error", http.StatusMethodNotAllowed)
 		return
@@ -544,7 +546,6 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 	if e.writeAccesslog {
 		e.logWriter.Flush()
 	}
-
 }
 
 func main() {
