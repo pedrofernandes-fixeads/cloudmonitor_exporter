@@ -575,8 +575,8 @@ func main() {
 	http.Handle(*metricsEndpoint, prometheus.Handler())
 	http.HandleFunc(*collectorEndpoint, exporter.HandleCollectorPost)
 
-	log.Printf("providing metrics at %s%s", *listenAddress, *metricsEndpoint)
-	log.Printf("accepting logs at at %s%s", *listenAddress, *collectorEndpoint)
+	log.Printf("peters version - providing metrics at %s%s", *listenAddress, *metricsEndpoint)
+	log.Printf("peters version - accepting logs at at %s%s", *listenAddress, *collectorEndpoint)
 
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
