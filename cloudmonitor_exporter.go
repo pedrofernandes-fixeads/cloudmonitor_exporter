@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/avct/user-agent-surfer"
+	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
 )
@@ -549,10 +550,9 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
 	flag.Parse()
 
-	log.Printf("Cloudmonitor-exporter %s\n", version.Print("cloudmonitor_exporter"))
+	log.Printf("Peters Cloudmonitor-exporter %s\n", version.Print("cloudmonitor_exporter"))
 	if *showVersion {
 		return
 	}
@@ -567,16 +567,25 @@ func main() {
 	prometheus.MustRegister(version.NewCollector("cloudmonitor_exporter"))
 	prometheus.MustRegister(exporter)
 
+	router := mux.NewRouter()
+	server := http.Server{
+		Handler:      router,
+		Addr:         *listenAddress,
+		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  10 * time.Second,
+	}
+
+	defer server.Close()
+
 	if !strings.HasSuffix(*collectorEndpoint, "/") {
 		endpointWithSlash := fmt.Sprintf("%v/", *collectorEndpoint)
 		http.HandleFunc(endpointWithSlash, exporter.HandleCollectorPost)
 	}
 
-	http.Handle(*metricsEndpoint, prometheus.Handler())
-	http.HandleFunc(*collectorEndpoint, exporter.HandleCollectorPost)
+	router.Handle(*metricsEndpoint, prometheus.Handler())
+	router.HandleFunc(*collectorEndpoint, exporter.HandleCollectorPost)
 
-	log.Printf("peters version - providing metrics at %s%s", *listenAddress, *metricsEndpoint)
-	log.Printf("peters version - accepting logs at at %s%s", *listenAddress, *collectorEndpoint)
-
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+	log.Printf("providing metrics at %s%s", *listenAddress, *metricsEndpoint)
+	log.Printf("accepting logs at at %s%s", *listenAddress, *collectorEndpoint)
+	log.Fatal(server.ListenAndServe())
 }
