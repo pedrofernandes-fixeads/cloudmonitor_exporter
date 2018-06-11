@@ -455,6 +455,8 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(e.logWriter, fmt.Sprintf("logging %v \n", logLineCounter))
 	mutex.Unlock()
 
+	fmt.Printf("Heyyyyy !!!")
+
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
 
