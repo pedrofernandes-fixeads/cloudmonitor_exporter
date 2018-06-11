@@ -350,12 +350,6 @@ func (e *Exporter) OutputLogEntry(cloudmonitorData *CloudmonitorStruct) {
 	// 	query = "?" + cloudmonitorData.Message.ReqQuery
 	// }
 
-	mutex := &sync.Mutex{}
-	mutex.Lock()
-	logLineCounter = logLineCounter + 1
-	fmt.Fprintf(e.logWriter, fmt.Sprintf("logging %v \n", logLineCounter))
-	mutex.Unlock()
-
 	// logentry := fmt.Sprintf("Fetching %v logline \n", logLineCounter)
 	/*logentry := fmt.Sprintf("%s %s %s \"%s %s://%s%s%s %s HTTP/%s\" %s %v '%s'\n",
 	cloudmonitorData.Message.ClientIP,
@@ -455,6 +449,12 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 	e.postSizeBytesTotal.Add(float64(r.ContentLength))
 	begin := time.Now()
 
+	mutex := &sync.Mutex{}
+	mutex.Lock()
+	logLineCounter = logLineCounter + 1
+	fmt.Fprintf(e.logWriter, fmt.Sprintf("logging %v \n", logLineCounter))
+	mutex.Unlock()
+
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
 
@@ -467,7 +467,7 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ipVersion := getIPVersion(cloudmonitorData.Message.ClientIP)
-		e.OutputLogEntry(cloudmonitorData)
+		// e.OutputLogEntry(cloudmonitorData)
 
 		e.httpRequestsTotal.WithLabelValues(
 			cloudmonitorData.Message.ReqHost,
