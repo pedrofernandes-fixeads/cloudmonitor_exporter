@@ -30,6 +30,8 @@ var (
 	accesslog         = flag.String("collector.accesslog", "", "Log incoming collector data to specified file.")
 	logErrors         = flag.Bool("collector.logerrors", false, "Log errors(5..) to stdout")
 	showVersion       = flag.Bool("version", false, "Show version information")
+	logLineCounter    int64
+	mutex             *sync.Mutex
 )
 
 type Exporter struct {
@@ -343,26 +345,27 @@ func (e *Exporter) SetLogfile(logpath string) {
 }
 
 func (e *Exporter) OutputLogEntry(cloudmonitorData *CloudmonitorStruct) {
-	query := ""
+	// query := ""
 
-	if len(cloudmonitorData.Message.ReqQuery) > 0 {
-		query = "?" + cloudmonitorData.Message.ReqQuery
-	}
+	// if len(cloudmonitorData.Message.ReqQuery) > 0 {
+	// 	query = "?" + cloudmonitorData.Message.ReqQuery
+	// }
 
-	logentry := fmt.Sprintf("%s %s %s \"%s %s://%s%s%s %s HTTP/%s\" %s %v '%s'\n",
-		cloudmonitorData.Message.ClientIP,
-		cloudmonitorData.Network.EdgeIP,
-		e.MillisecondsToTime(cloudmonitorData.Start),
-		cloudmonitorData.Message.ReqMethod,
-		cloudmonitorData.Message.Protocol,
-		cloudmonitorData.Message.ReqHost,
-		e.UnescapeString(cloudmonitorData.Message.ReqPath),
-		e.UnescapeString(query),
-		cloudmonitorData.Message.ResStatus,
-		cloudmonitorData.Message.ProtocolVersion,
-		e.GetCacheString(cloudmonitorData.Performance.CacheStatus),
-		cloudmonitorData.Message.ResBytes,
-		cloudmonitorData.Message.UserAgent)
+	logentry := fmt.Sprintf("Fetching %v logline \n", logLineCounter)
+	/*logentry := fmt.Sprintf("%s %s %s \"%s %s://%s%s%s %s HTTP/%s\" %s %v '%s'\n",
+	cloudmonitorData.Message.ClientIP,
+	cloudmonitorData.Network.EdgeIP,
+	e.MillisecondsToTime(cloudmonitorData.Start),
+	cloudmonitorData.Message.ReqMethod,
+	cloudmonitorData.Message.Protocol,
+	cloudmonitorData.Message.ReqHost,
+	e.UnescapeString(cloudmonitorData.Message.ReqPath),
+	e.UnescapeString(query),
+	cloudmonitorData.Message.ResStatus,
+	cloudmonitorData.Message.ProtocolVersion,
+	e.GetCacheString(cloudmonitorData.Performance.CacheStatus),
+	cloudmonitorData.Message.ResBytes,
+	cloudmonitorData.Message.UserAgent)*/
 
 	if e.writeAccesslog == true {
 		fmt.Fprintf(e.logWriter, logentry)
@@ -445,6 +448,10 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e.postSizeBytesTotal.Add(float64(r.ContentLength))
+
+	mutex.Lock()
+	logLineCounter++
+	mutex.Unlock()
 
 	begin := time.Now()
 
@@ -550,6 +557,9 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	logLineCounter = 0
+	mutex = &sync.Mutex{}
+
 	flag.Parse()
 
 	log.Printf("Peters Cloudmonitor-exporter %s\n", version.Print("cloudmonitor_exporter"))
