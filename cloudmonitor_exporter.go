@@ -31,7 +31,6 @@ var (
 	logErrors         = flag.Bool("collector.logerrors", false, "Log errors(5..) to stdout")
 	showVersion       = flag.Bool("version", false, "Show version information")
 	logLineCounter    int64
-	mutex             *sync.Mutex
 )
 
 type Exporter struct {
@@ -351,7 +350,13 @@ func (e *Exporter) OutputLogEntry(cloudmonitorData *CloudmonitorStruct) {
 	// 	query = "?" + cloudmonitorData.Message.ReqQuery
 	// }
 
-	logentry := fmt.Sprintf("Fetching %v logline \n", logLineCounter)
+	mutex := &sync.Mutex{}
+	mutex.Lock()
+	logLineCounter = logLineCounter + 1
+	fmt.Fprintf(e.logWriter, fmt.Sprintf("logging %v \n", logLineCounter))
+	mutex.Unlock()
+
+	// logentry := fmt.Sprintf("Fetching %v logline \n", logLineCounter)
 	/*logentry := fmt.Sprintf("%s %s %s \"%s %s://%s%s%s %s HTTP/%s\" %s %v '%s'\n",
 	cloudmonitorData.Message.ClientIP,
 	cloudmonitorData.Network.EdgeIP,
@@ -367,16 +372,16 @@ func (e *Exporter) OutputLogEntry(cloudmonitorData *CloudmonitorStruct) {
 	cloudmonitorData.Message.ResBytes,
 	cloudmonitorData.Message.UserAgent)*/
 
-	if e.writeAccesslog == true {
-		fmt.Fprintf(e.logWriter, logentry)
-	}
+	// if e.writeAccesslog == true {
+	// 	fmt.Fprintf(e.logWriter, logentry)
+	// }
 
-	if e.logErrors {
-		status, _ := strconv.Atoi(cloudmonitorData.Message.ResStatus)
-		if status >= 500 && status <= 599 {
-			fmt.Printf(logentry)
-		}
-	}
+	// if e.logErrors {
+	// 	status, _ := strconv.Atoi(cloudmonitorData.Message.ResStatus)
+	// 	if status >= 500 && status <= 599 {
+	// 		fmt.Printf(logentry)
+	// 	}
+	// }
 }
 
 func (e *Exporter) DummyUse(vals ...interface{}) {
@@ -448,11 +453,6 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e.postSizeBytesTotal.Add(float64(r.ContentLength))
-
-	mutex.Lock()
-	logLineCounter++
-	mutex.Unlock()
-
 	begin := time.Now()
 
 	scanner := bufio.NewScanner(r.Body)
@@ -467,7 +467,6 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ipVersion := getIPVersion(cloudmonitorData.Message.ClientIP)
-
 		e.OutputLogEntry(cloudmonitorData)
 
 		e.httpRequestsTotal.WithLabelValues(
@@ -558,8 +557,6 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	logLineCounter = 0
-	mutex = &sync.Mutex{}
-
 	flag.Parse()
 
 	log.Printf("Peters Cloudmonitor-exporter %s\n", version.Print("cloudmonitor_exporter"))
