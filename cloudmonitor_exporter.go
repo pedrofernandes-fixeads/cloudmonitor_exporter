@@ -30,8 +30,6 @@ var (
 	accesslog         = flag.String("collector.accesslog", "", "Log incoming collector data to specified file.")
 	logErrors         = flag.Bool("collector.logerrors", false, "Log errors(5..) to stdout")
 	showVersion       = flag.Bool("version", false, "Show version information")
-	logLineCounter    int64
-	mutex             *sync.Mutex
 )
 
 type Exporter struct {
@@ -449,11 +447,6 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 
 	e.postSizeBytesTotal.Add(float64(r.ContentLength))
 	begin := time.Now()
-
-	mutex.Lock()
-	logLineCounter = logLineCounter + 1
-	mutex.Unlock()
-
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
 
@@ -555,9 +548,6 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	mutex = &sync.Mutex{}
-	logLineCounter = 0
-
 	flag.Parse()
 
 	log.Printf("Peters Cloudmonitor-exporter %s\n", version.Print("cloudmonitor_exporter"))
@@ -592,24 +582,6 @@ func main() {
 
 	router.Handle(*metricsEndpoint, prometheus.Handler())
 	router.HandleFunc(*collectorEndpoint, exporter.HandleCollectorPost)
-
-	ticker := time.NewTicker(1 * time.Hour)
-	quit := make(chan struct{})
-
-	go func() {
-		begin := time.Now()
-
-		for {
-			select {
-			case <-ticker.C:
-				duration := time.Since(begin)
-				fmt.Println(fmt.Sprintf("Reporting log lines count %d since %f hours ago", logLineCounter, duration.Hours()))
-			case <-quit:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
 
 	log.Printf("providing metrics at %s%s", *listenAddress, *metricsEndpoint)
 	log.Printf("accepting logs at at %s%s", *listenAddress, *collectorEndpoint)
