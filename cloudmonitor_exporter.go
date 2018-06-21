@@ -109,7 +109,7 @@ type MessageStruct struct {
 	ResLength       float64 `json:"respLen,string"`
 	ResBytes        float64 `json:"bytes,string"`
 	UserAgent       string  `json:"UA"`
-	ForwardHost     string  `json:"fwdHost`
+	ForwardHost     string  `json:"fwdHost"`
 }
 
 type RequestStruct struct {
@@ -343,38 +343,36 @@ func (e *Exporter) SetLogfile(logpath string) {
 }
 
 func (e *Exporter) OutputLogEntry(cloudmonitorData *CloudmonitorStruct) {
-	// query := ""
+	query := ""
+	if len(cloudmonitorData.Message.ReqQuery) > 0 {
+		query = "?" + cloudmonitorData.Message.ReqQuery
+	}
 
-	// if len(cloudmonitorData.Message.ReqQuery) > 0 {
-	// 	query = "?" + cloudmonitorData.Message.ReqQuery
-	// }
+	logentry := fmt.Sprintf("%s %s %s \"%s %s://%s%s%s %s HTTP/%s\" %s %v '%s'\n",
+		cloudmonitorData.Message.ClientIP,
+		cloudmonitorData.Network.EdgeIP,
+		e.MillisecondsToTime(cloudmonitorData.Start),
+		cloudmonitorData.Message.ReqMethod,
+		cloudmonitorData.Message.Protocol,
+		cloudmonitorData.Message.ReqHost,
+		e.UnescapeString(cloudmonitorData.Message.ReqPath),
+		e.UnescapeString(query),
+		cloudmonitorData.Message.ResStatus,
+		cloudmonitorData.Message.ProtocolVersion,
+		e.GetCacheString(cloudmonitorData.Performance.CacheStatus),
+		cloudmonitorData.Message.ResBytes,
+		cloudmonitorData.Message.UserAgent)
 
-	// logentry := fmt.Sprintf("Fetching %v logline \n", logLineCounter)
-	/*logentry := fmt.Sprintf("%s %s %s \"%s %s://%s%s%s %s HTTP/%s\" %s %v '%s'\n",
-	cloudmonitorData.Message.ClientIP,
-	cloudmonitorData.Network.EdgeIP,
-	e.MillisecondsToTime(cloudmonitorData.Start),
-	cloudmonitorData.Message.ReqMethod,
-	cloudmonitorData.Message.Protocol,
-	cloudmonitorData.Message.ReqHost,
-	e.UnescapeString(cloudmonitorData.Message.ReqPath),
-	e.UnescapeString(query),
-	cloudmonitorData.Message.ResStatus,
-	cloudmonitorData.Message.ProtocolVersion,
-	e.GetCacheString(cloudmonitorData.Performance.CacheStatus),
-	cloudmonitorData.Message.ResBytes,
-	cloudmonitorData.Message.UserAgent)*/
+	if e.writeAccesslog == true {
+		fmt.Fprintf(e.logWriter, logentry)
+	}
 
-	// if e.writeAccesslog == true {
-	// 	fmt.Fprintf(e.logWriter, logentry)
-	// }
-
-	// if e.logErrors {
-	// 	status, _ := strconv.Atoi(cloudmonitorData.Message.ResStatus)
-	// 	if status >= 500 && status <= 599 {
-	// 		fmt.Printf(logentry)
-	// 	}
-	// }
+	if e.logErrors {
+		status, _ := strconv.Atoi(cloudmonitorData.Message.ResStatus)
+		if status >= 500 && status <= 599 {
+			fmt.Printf(logentry)
+		}
+	}
 }
 
 func (e *Exporter) DummyUse(vals ...interface{}) {
@@ -459,7 +457,7 @@ func (e *Exporter) HandleCollectorPost(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ipVersion := getIPVersion(cloudmonitorData.Message.ClientIP)
-		// e.OutputLogEntry(cloudmonitorData)
+		e.OutputLogEntry(cloudmonitorData)
 
 		e.httpRequestsTotal.WithLabelValues(
 			cloudmonitorData.Message.ReqHost,
