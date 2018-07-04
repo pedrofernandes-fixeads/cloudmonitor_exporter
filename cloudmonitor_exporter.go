@@ -567,8 +567,8 @@ func main() {
 	server := http.Server{
 		Handler:      router,
 		Addr:         *listenAddress,
-		WriteTimeout: 10 * time.Second,
-		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 20 * time.Second,
+		ReadTimeout:  20 * time.Second,
 	}
 
 	defer server.Close()
